@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Текстовый шифратор</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4a90e2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Шифратор">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- crypto-js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+  <style>
+    /* === твои стили из crpt-fin-webCrypto.html === */
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 20px auto;
+      padding: 10px;
+      background: #f9f9f9;
+      color: #333;
+      transition: background 0.3s, color 0.3s;
+      box-sizing: border-box;
+    }
+    h1 { text-align: center; color: #444; }
+    textarea, input, select {
+      width: 100%;
+      display: block;
+      margin: 5px 0 10px 0;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-family: monospace;
+      box-sizing: border-box;
+      transition: all 0.2s ease-in-out;
+    }
+    textarea:focus, input:focus, select:focus {
+      border-color: #4a90e2;
+      box-shadow: 0 0 6px rgba(74,144,226,0.6);
+      outline: none;
+      background: #fdfdfd;
+    }
+    #text { height: 200px; resize: none; }
+    #result { min-height: 80px; resize: none; }
+    button {
+      margin: 5px 5px 10px 0;
+      padding: 10px 15px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background: #4a90e2;
+      color: #fff;
+    }
+    button:hover { background: #357abd; }
+    .secondary { background: #aaa; }
+    .secondary:hover { background: #888; }
+    .copy-btn { background: #27ae60; }
+    .copy-btn:hover { background: #1e874b; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-group-left { display: flex; gap: 10px; }
+    .btn-group-right { margin-left: auto; display: flex; gap: 10px; }
+    .cipher { background: #e0f0ff; }
+    .plain  { background: #e0ffe0; }
+    .error  { background: #ffe0e0; }
+    .highlight { background: #d4fcd4 !important; }
+    .fade-grey { background: #eee !important; }
+    .clear-wrapper, .copy-wrapper { position: relative; display: inline-block; }
+    #clearStatus, #copyStatus {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      margin-bottom: 5px;
+      font-size: 0.85em;
+      color: #27ae60;
+      background: rgba(255,255,255,0.9);
+      padding: 2px 6px;
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      opacity: 0;
+      transition: opacity 0.4s ease-in-out;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #clearStatus.visible, #copyStatus.visible { opacity: 1; }
+    @media (max-width: 600px) {
+      .actions { flex-direction: column; }
+      .btn-group-left, .btn-group-right { width: 100%; display: flex; gap: 10px; }
+      .btn-group-left button, .btn-group-right button { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Текстовый шифратор</h1>
+
+  <label for="algo">Алгоритм:</label>
+  <select id="algo">
+    <option value="AES-GCM" selected>AES-GCM (WebCrypto)</option>
+    <option value="AES">AES (CBC, CryptoJS)</option>
+  </select>
+  <div id="algoHint">AES-GCM: современный стандарт, быстрый и с проверкой целостности.</div>
+
+  <label for="text">Текст:</label>
+  <textarea id="text"></textarea>
+
+  <label for="password">Пароль:</label>
+  <input type="password" id="password">
+
+  <div class="actions">
+    <div class="btn-group-left">
+      <button onclick="encryptText()">Зашифровать</button>
+      <button onclick="decryptText()">Расшифровать</button>
+    </div>
+    <div class="btn-group-right">
+      <div class="clear-wrapper">
+        <div id="clearStatus">Очищено!</div>
+        <button class="secondary" onclick="clearAll()">Очистить</button>
+      </div>
+      <div class="copy-wrapper">
+        <div id="copyStatus">Скопировано!</div>
+        <button class="copy-btn" onclick="copyResult()">Копировать</button>
+      </div>
+    </div>
+  </div>
+
+  <textarea id="result" placeholder="Результат" readonly></textarea>
+
+  <script>
+    async function getKey(password,salt){
+      const enc=new TextEncoder();
+      const keyMaterial=await crypto.subtle.importKey("raw",enc.encode(password),{name:"PBKDF2"},false,["deriveKey"]);
+      return crypto.subtle.deriveKey(
+        {name:"PBKDF2",salt,iterations:100000,hash:"SHA-256"},
+        keyMaterial,
+        {name:"AES-GCM",length:256},false,["encrypt","decrypt"]
+      );
+    }
+    async function encryptGCM(text,password){
+      const enc=new TextEncoder();
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const key=await getKey(password,salt);
+      const data=enc.encode(text);
+      const buf=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,data);
+      const packed=new Uint8Array(salt.byteLength+iv.byteLength+buf.byteLength);
+      packed.set(salt,0);packed.set(iv,salt.byteLength);packed.set(new Uint8Array(buf),salt.byteLength+iv.byteLength);
+      return btoa(String.fromCharCode(...packed));
+    }
+    async function decryptGCM(b64,password){
+      const packed=Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+      const salt=packed.slice(0,16),iv=packed.slice(16,28),data=packed.slice(28);
+      const key=await getKey(password,salt);
+      const buf=await crypto.subtle.decrypt({name:"AES-GCM",iv},key,data);
+      return new TextDecoder().decode(buf);
+    }
+    async function encryptText(){
+      const text=document.getElementById('text').value;
+      const pass=document.getElementById('password').value;
+      const algo=document.getElementById('algo').value;
+      const res=document.getElementById('result');
+      if(!pass){alert("Введите пароль");return;}
+      if(algo==="AES-GCM"){try{res.value=await encryptGCM(text,pass);res.className="cipher";}catch{res.value="Ошибка AES-GCM";res.className="error";}return;}
+      res.value=CryptoJS.AES.encrypt(text,pass).toString();res.className="cipher";
+    }
+    async function decryptText(){
+      const text=document.getElementById('text').value;
+      const pass=document.getElementById('password').value;
+      const algo=document.getElementById('algo').value;
+      const res=document.getElementById('result');
+      if(!pass){alert("Введите пароль");return;}
+      if(algo==="AES-GCM"){try{res.value=await decryptGCM(text,pass);res.className="plain";}catch{res.value="Ошибка: неверный пароль";res.className="error";}return;}
+      try{const bytes=CryptoJS.AES.decrypt(text,pass);const orig=bytes.toString(CryptoJS.enc.Utf8);if(!orig)throw new Error();res.value=orig;res.className="plain";}
+      catch{res.value="Ошибка: неверный пароль или повреждённый текст";res.className="error";}
+    }
+    function clearAll(){
+      const res=document.getElementById('result');
+      document.getElementById('text').value="";
+      document.getElementById('password').value="";
+      res.value="";res.className="";
+      const status=document.getElementById('clearStatus');
+      status.classList.add("visible");res.classList.add("fade-grey");
+      setTimeout(()=>{status.classList.remove("visible");res.classList.remove("fade-grey");},1500);
+    }
+    function copyResult(){
+      const res=document.getElementById('result');const status=document.getElementById('copyStatus');
+      if(!res.value){status.textContent="Пусто";status.style.color="#c0392b";status.classList.add("visible");setTimeout(()=>{status.classList.remove("visible");},1500);return;}
+      res.select();document.execCommand("copy");
+      status.textContent="Скопировано!";status.style.color="#27ae60";status.classList.add("visible");res.classList.add("highlight");
+      setTimeout(()=>{status.classList.remove("visible");res.classList.remove("highlight");},1500);
+    }
+  </script>
+
+  <!-- Регистрация Service Worker -->
+  <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .then(() => console.log("Service Worker зарегистрирован"))
+      .catch(err => console.error("SW ошибка", err));
+  }
+  </script>
+</body>
+</html>
