@@ -13,11 +13,9 @@
   <meta name="apple-mobile-web-app-title" content="Шифратор">
   <link rel="apple-touch-icon" href="icon-192.png">
 
-  <!-- crypto-js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
   <style>
-    /* === твои стили из crpt-fin-webCrypto.html === */
     body {
       font-family: Arial, sans-serif;
       max-width: 700px;
@@ -26,12 +24,11 @@
       background: #f9f9f9;
       color: #333;
       transition: background 0.3s, color 0.3s;
-      box-sizing: border-box;
     }
     h1 { text-align: center; color: #444; }
+
     textarea, input, select {
       width: 100%;
-      display: block;
       margin: 5px 0 10px 0;
       padding: 10px;
       font-size: 16px;
@@ -48,7 +45,8 @@
       background: #fdfdfd;
     }
     #text { height: 200px; resize: none; }
-    #result { min-height: 80px; resize: none; }
+    #result { min-height: 80px; resize: none; transition: background-color 0.6s ease; }
+
     button {
       margin: 5px 5px 10px 0;
       padding: 10px 15px;
@@ -60,18 +58,23 @@
       color: #fff;
     }
     button:hover { background: #357abd; }
+
     .secondary { background: #aaa; }
     .secondary:hover { background: #888; }
     .copy-btn { background: #27ae60; }
     .copy-btn:hover { background: #1e874b; }
+
     .actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .btn-group-left { display: flex; gap: 10px; }
     .btn-group-right { margin-left: auto; display: flex; gap: 10px; }
+
     .cipher { background: #e0f0ff; }
     .plain  { background: #e0ffe0; }
     .error  { background: #ffe0e0; }
+
     .highlight { background: #d4fcd4 !important; }
     .fade-grey { background: #eee !important; }
+
     .clear-wrapper, .copy-wrapper { position: relative; display: inline-block; }
     #clearStatus, #copyStatus {
       position: absolute;
@@ -91,10 +94,20 @@
       white-space: nowrap;
     }
     #clearStatus.visible, #copyStatus.visible { opacity: 1; }
+
     @media (max-width: 600px) {
       .actions { flex-direction: column; }
       .btn-group-left, .btn-group-right { width: 100%; display: flex; gap: 10px; }
       .btn-group-left button, .btn-group-right button { flex: 1; }
+    }
+
+    /* 👇 Только для PWA (standalone) */
+    @media all and (display-mode: standalone) {
+      .btn-group-right {
+        justify-content: center;
+        margin-left: 0;
+        width: 100%;
+      }
     }
   </style>
 </head>
