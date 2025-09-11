@@ -1,5 +1,5 @@
 {
-  "name": "Текстовый шифратор",
+  "name": "AES",
   "short_name": "Шифратор",
   "start_url": "./index.html",
   "display": "standalone",
